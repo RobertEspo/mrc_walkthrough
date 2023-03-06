@@ -1,0 +1,122 @@
+---
+title: "MRC examples"
+format: html
+toc: TRUE
+---
+
+```{r}
+#| label: setup-chunk
+#| message: false
+#| warning: false
+library(tidyverse)
+library(ds4ling)
+library(untidydata)
+library(broom)
+library(emmeans)
+library(knitr)
+```
+
+```{r}
+#| label: explore-data
+
+## change characters to factors
+ld <- language_diversity %>%
+  mutate_if(is.character,as.factor)
+
+## view 5-number summary & some other info
+summary(ld)
+
+## some other functions to view data
+dim(ld)
+str(ld)
+glimpse(ld)
+?language_diversity
+
+## make a visual
+ld %>% ggplot() +
+  aes(Continent,Value) +
+  geom_point()
+
+## make a wider dataframe
+ld_wide <- ld %>%
+  pivot_wider(
+    names_from=Measurement,
+    values_from=Value
+  )
+
+## make another visual
+ld_wide %>% ggplot() +
+  aes(Population,Langs) +
+  geom_point() +
+  geom_smooth(method="lm")
+
+## log transformation
+ld_wide_log <- ld_wide %>%
+  mutate(
+    lang_log = log(Langs),
+    area_log = log(Area),
+    pop_log = log(Population)
+  )
+
+## make another visual
+ld_wide_log %>% ggplot() +
+  aes(pop_log,lang_log) +
+  geom_point() +
+  geom_smooth(method="lm")
+```
+
+```{r}
+#| label: fit-model
+
+## intercept-only model
+mod_0 <- lm(lang_log ~ 1, data=ld_wide_log)
+summary(mod_0)
+mean(ld_wide_log$lang_log)
+
+## linear bivariate model
+mod_1 <- lm(lang_log ~ pop_log, data=ld_wide_log)
+summary(mod_1)
+
+## additive linear bivariate model
+mod_2 <- lm(lang_log ~ pop_log + area_log, data=ld_wide_log)
+summary(mod_2)
+
+## interactive linear bivariate model
+mod_3 <- lm(lang_log ~ pop_log * area_log,data=ld_wide_log)
+summary(mod_3)
+```
+
+# tables and plots
+
+Hello, please appreciate @tbl-model.
+
+```{r}
+#| label: tbl-model
+#| tbl-cap: "Hello"
+
+tidy(mod_3) %>%
+  kable(format = "pandoc")
+```
+
+```{r}
+#| label: get-estimates
+
+## this is the same thing as using the regression equation to get estimates
+
+
+## view points on the regression line (bivariate)
+emmeans(
+  object = mod_1,
+  specs = ~ pop_log,
+  at = list(pop_log = seq(0,20),by=1)
+)
+
+## view points on the regression line (multiple)
+emmeans(
+  object = mod_3,
+  specs = ~ pop_log * area_log,
+  at = list(pop_log = c(0,10,20),
+            area_log = c(0,10,20))
+)
+```
+
